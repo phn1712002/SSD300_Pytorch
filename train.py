@@ -79,12 +79,12 @@ def train():
         print('Resuming training, loading {}...'.format(args.resume))
         ssd_net.load_weights(args.resume)
     else:
-        vgg_weights = torch.load(args.save_folder + 'vgg16_reducedfc.pth')
-        
-        if not os.path.exists(vgg_weights):
+        path_model = 'weights/' + 'vgg16_reducedfc.pth'
+        if not os.path.exists(path_model):
             print('Download base network...')
             os.system('wget https://s3.amazonaws.com/amdegroot-models/vgg16_reducedfc.pth')
-            
+            vgg_weights = torch.load(path_model)
+
         print('Loading base network...')
         ssd_net.vgg.load_state_dict(vgg_weights)
 
@@ -167,7 +167,7 @@ def train():
             torch.save(ssd_net.state_dict(), 'weights/ssd300_COCO_' +
                        repr(iteration) + '.pth')
     torch.save(ssd_net.state_dict(),
-               args.save_folder + '' + args.dataset + '.pth')
+               'weights/' + '' + args.dataset + '.pth')
 
 
 def adjust_learning_rate(optimizer, gamma, step):
