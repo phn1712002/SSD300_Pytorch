@@ -1,2 +1,2 @@
-# Fork: [amdegroot/ssd.pytorch](https://choosealicense.com/licenses/mit/)
+# Fork: [amdegroot/ssd.pytorch](https://github.com/amdegroot/ssd.pytorch)
 
