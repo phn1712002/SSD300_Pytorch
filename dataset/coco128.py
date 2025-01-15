@@ -1,4 +1,5 @@
 import torch.utils.data as data
+from utils import tools
 import os.path as osp
 
 class COCO_128AnnotationTransform(object):
@@ -15,7 +16,7 @@ class COCO_128AnnotationTransform(object):
     """
 
     def __init__(self, class_to_ind=None, keep_difficult=False):
-        self.class_to_ind = None
+        self.class_to_ind = class_to_ind
         self.keep_difficult = keep_difficult
 
     def __call__(self, target, width, height):
@@ -42,11 +43,12 @@ class COCO_128AnnotationTransform(object):
         return res  # [[xmin, ymin, xmax, ymax, label_ind], ... ]
 
 class COCO_128Detection(data.Dataset):
-    def __init__(self, path_yaml,
+    def __init__(self, parameter,
                  transform=None):
-        self.path_yaml = path_yaml
+        self.name = "Dataset coco128-format"
+        self.parameter = parameter
         self.transform = transform
-        self.target_transform = COCO_128AnnotationTransform()
+        self.target_transform = COCO_128AnnotationTransform({value: key for key, value in parameter['names'].items()})
         self._annopath = osp.join('%s', 'Annotations', '%s.xml')
         self._imgpath = osp.join('%s', 'JPEGImages', '%s.jpg')
         self.ids = list()

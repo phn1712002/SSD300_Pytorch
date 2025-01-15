@@ -4,7 +4,6 @@ means:
   - 123
 
 cfg:
-  num_classes: 21
   lr_steps:
     - 80000
     - 100000

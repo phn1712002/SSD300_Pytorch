@@ -27,10 +27,10 @@ parser.add_argument('--batch_size', default=32, type=int,
                     help='Batch size for training')
 parser.add_argument('--hyp', default='hyp.yaml', type=str,
                     help='File yaml hyp of model')
+parser.add_argument('--data', default='dataset/coco128.yaml', type=str,
+                    help='File yaml dataset of model')
 parser.add_argument('--resume', default=None, type=str,
                     help='Checkpoint state_dict file to resume training from')
-parser.add_argument('--start_iter', default=0, type=int,
-                    help='Resume training at this iter')
 parser.add_argument('--num_workers', default=4, type=int,
                     help='Number of workers used in dataloading')
 parser.add_argument('--cuda', default=True, type=str2bool,
@@ -59,14 +59,16 @@ else:
 if not os.path.exists('weights/'):
     os.mkdir('weights/')
 
-hyp = tools.load_yaml_to_dict(args.hyp)
-
 def train():
 
     cfg = tools.copy_dict_excluding_keys(hyp, ['means'])
-    dataset = coco128.COCO_128Detection(path_yaml='dataset/coco128.yaml', transform=SSDAugmentation(cfg['min_dim'], hyp['means']))
+    cfg['num_classes'] = len(p_dataset['names'])
+    hyp = tools.load_yaml_to_dict(args.hyp)
+    p_dataset = tools.load_yaml_to_dict(args.data)
 
-    ssd_net = build_ssd('train', cfg['min_dim'], cfg['num_classes'])
+    dataset = coco128.COCO_128Detection(parameter=p_dataset, transform=SSDAugmentation(cfg['min_dim'], hyp['means']))
+
+    ssd_net = build_ssd('train', cfg['min_dim'], num_classes=cfg['num_classes'])
     net = ssd_net
 
     if args.cuda:
@@ -121,7 +123,7 @@ def train():
                                   pin_memory=True)
     # create batch iterator
     batch_iterator = iter(data_loader)
-    for iteration in range(args.start_iter, cfg['max_iter']):
+    for iteration in range(0, cfg['max_iter']):
         if iteration != 0 and (iteration % epoch_size == 0):
             update_vis_plot(epoch, loc_loss, conf_loss, epoch_plot, None,
                             'append', epoch_size)
