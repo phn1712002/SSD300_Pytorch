@@ -123,10 +123,18 @@ def train():
 
     step_index = 0
 
-    data_loader = data.DataLoader(dataset, args.batch_size,
-                                  num_workers=args.num_workers,
-                                  shuffle=True, collate_fn=detection_collate,
-                                  pin_memory=True)
+    if not args.cuda:
+      data_loader = data.DataLoader(dataset, args.batch_size,
+                                    num_workers=args.num_workers,
+                                    shuffle=True, collate_fn=detection_collate,
+                                    pin_memory=True)
+    else:
+      data_loader = data.DataLoader(dataset, args.batch_size,
+                                    num_workers=args.num_workers,
+                                    shuffle=True, collate_fn=detection_collate,
+                                    pin_memory=True,
+                                    generator=torch.Generator(device='cuda'))
+
     # create batch iterator
     path_folder_save = f"./{args.project}/{args.name}/"
     batch_iterator = iter(data_loader)
