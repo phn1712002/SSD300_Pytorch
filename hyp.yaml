@@ -6,10 +6,6 @@ augmentations:
   size: 300
 
 cfg:
-  lr_steps:
-    - 80000
-    - 100000
-    - 120000
   max_iter: 120000
   feature_maps:
     - 38
@@ -51,3 +47,19 @@ cfg:
     - 0.1
     - 0.2
   clip: true
+
+detect:
+  bkg_label: 0
+  top_k: 200 
+  conf_thresh: 0.01
+  nms_thresh: 0.45
+
+opt: # SGD
+  lr: 1e-3 # Initial learning rate
+  momentum: 0.9 # Momentum value for optim
+  weight_decay: 5e-4 # Weight decay for SGD
+  gamma: 0.1 # Gamma update for SGD
+  lr_steps:
+    - 80000
+    - 100000
+    - 120000

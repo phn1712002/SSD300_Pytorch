@@ -16,6 +16,8 @@ import torch.utils.data as data
 import numpy as np
 import argparse
 
+os.system('pyclean .')
+os.system('clear')
 
 def str2bool(v):
     return v.lower() in ("yes", "true", "t", "1")
@@ -27,7 +29,7 @@ parser.add_argument('--batch_size', default=32, type=int,
                     help='Batch size for training')
 parser.add_argument('--hyp', default='hyp.yaml', type=str,
                     help='File yaml hyp of model')
-parser.add_argument('--data', default='dataset/coco128.yaml', type=str,
+parser.add_argument('--data', default='coco128.yaml', type=str,
                     help='File yaml dataset of model')
 parser.add_argument('--resume', default=None, type=str,
                     help='Checkpoint state_dict file to resume training from')
@@ -35,14 +37,10 @@ parser.add_argument('--num_workers', default=4, type=int,
                     help='Number of workers used in dataloading')
 parser.add_argument('--cuda', default=True, type=str2bool,
                     help='Use CUDA to train model')
-parser.add_argument('--lr', '--learning-rate', default=1e-3, type=float,
-                    help='initial learning rate')
-parser.add_argument('--momentum', default=0.9, type=float,
-                    help='Momentum value for optim')
-parser.add_argument('--weight_decay', default=5e-4, type=float,
-                    help='Weight decay for SGD')
-parser.add_argument('--gamma', default=0.1, type=float,
-                    help='Gamma update for SGD')
+parser.add_argument('--project', default="SSD", type=str,
+                    help='Name project')
+parser.add_argument('--name', default=tools.generate_random_name(4), type=str,
+                    help='Name run exp')
 args = parser.parse_args()
 
 
@@ -62,13 +60,14 @@ if not os.path.exists('weights/'):
 def train():
 
     hyp = tools.load_yaml_to_dict(args.hyp)
-    cfg = tools.copy_dict_excluding_keys(hyp, ['augmentations'])['cfg']
-    aug = tools.copy_dict_excluding_keys(hyp, ['cfg'])['augmentations']
+    cfg = hyp['cfg']
+    aug = hyp['augmentations']
+    opt = hyp['opt']
+    p_detect = hyp['detect']
 
     dataset = coco128.COCO_128Detection(path_yaml=args.data, transform=SSDAugmentation(**aug))
-    cfg['num_classes'] = dataset.num_classes
 
-    ssd_net = build_ssd(phase='train', size=cfg['min_dim'], num_classes=cfg['num_classes'])
+    ssd_net = build_ssd(phase='train', size=cfg['min_dim'], num_classes=dataset.num_classes, p_detect=p_detect, cfg=cfg)
     net = ssd_net
 
     if args.cuda:
@@ -98,10 +97,10 @@ def train():
         ssd_net.loc.apply(weights_init)
         ssd_net.conf.apply(weights_init)
 
-    optimizer = optim.SGD(net.parameters(), lr=args.lr, momentum=args.momentum,
-                          weight_decay=args.weight_decay)
-    criterion = MultiBoxLoss(cfg['num_classes'], 0.5, True, 0, True, 3, 0.5,
-                             False, args.cuda)
+    optimizer = optim.SGD(net.parameters(), lr=opt['lr'], momentum=opt['momentum'],
+                          weight_decay=opt['weight_decay'])
+    criterion = MultiBoxLoss(dataset.num_classes, 0.5, True, 0, True, 3, 0.5,
+                             False, cfg['variance'], args.cuda)
 
     net.train()
     # loss counters
@@ -125,16 +124,14 @@ def train():
     batch_iterator = iter(data_loader)
     for iteration in range(0, cfg['max_iter']):
         if iteration != 0 and (iteration % epoch_size == 0):
-            update_vis_plot(epoch, loc_loss, conf_loss, epoch_plot, None,
-                            'append', epoch_size)
             # reset epoch loss counters
             loc_loss = 0
             conf_loss = 0
             epoch += 1
 
-        if iteration in cfg['lr_steps']:
+        if iteration in opt['lr_steps']:
             step_index += 1
-            adjust_learning_rate(optimizer, args.gamma, step_index)
+            adjust_learning_rate(optimizer, opt['gamma'], step_index)
 
         # load train data
         images, targets = next(batch_iterator)
@@ -176,7 +173,7 @@ def adjust_learning_rate(optimizer, gamma, step):
     # Adapted from PyTorch Imagenet example:
     # https://github.com/pytorch/examples/blob/master/imagenet/main.py
     """
-    lr = args.lr * (gamma ** (step))
+    lr = opt['lr'] * (gamma ** (step))
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
 
