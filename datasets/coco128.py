@@ -10,7 +10,7 @@ class COCO_128Lables(object):
     def __init__(self, ind_to_class=None):
         self.ind_to_class = ind_to_class
         self.num_classes = len(ind_to_class)
-    def get_target(self, path_target):
+    def get_target(self, path_target, height_img, width_img):
         results = []
 
         with open(path_target, 'r') as file:
@@ -29,11 +29,11 @@ class COCO_128Lables(object):
             height = float(parts[4])
 
             # Convert [xmin, ymin, xmax, ymax, label_ind]
-            xmin = center_x - width / 2
-            ymin = center_y - height / 2
-            xmax = center_x + width / 2
-            ymax = center_y + height / 2
-
+            xmin = float(center_x - width / 2) / width_img 
+            ymin = float(center_y - height / 2) / height_img
+            xmax = float(center_x + width / 2) / width_img 
+            ymax = float(center_y + height / 2) / height_img
+        
             results.append([xmin, ymin, xmax, ymax, label_ind])
 
         return results # [[xmin, ymin, xmax, ymax, label_ind], ... ]
@@ -82,7 +82,7 @@ class COCO_128Detection(data.Dataset):
         img = cv2.imread(img_path)
         height, width, channels = img.shape
 
-        target = self.target_transform.get_target(target_path)
+        target = self.target_transform.get_target(target_path, height, width)
         
         if self.transform is not None:
             target = np.array(target)
@@ -122,7 +122,9 @@ class COCO_128Detection(data.Dataset):
         name_id = self.ids[index]
         img_path = self.dict_imgs_path[name_id]
         target_path = self.dict_labels_path[name_id]
-        target = self.target_transform.get_target(target_path)
+        img = cv2.imread(img_path)
+        height, width, channels = img.shape
+        target = self.target_transform.get_target(target_path, height, width)
 
         return name_id, target
 
