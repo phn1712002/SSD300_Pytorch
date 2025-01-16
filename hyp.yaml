@@ -1,7 +1,9 @@
-means:
-  - 104
-  - 117
-  - 123
+augmentations:
+  mean:
+    - 104
+    - 117
+    - 123
+  size: 300
 
 cfg:
   lr_steps:

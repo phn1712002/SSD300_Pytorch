@@ -1,85 +1,96 @@
 import torch.utils.data as data
 from utils import tools
 import os.path as osp
+import os
+import cv2
+import numpy as np
+import torch
 
-class COCO_128AnnotationTransform(object):
-    """Transforms a annotation into a Tensor of bbox coords and label index
-    Initilized with a dictionary lookup of classnames to indexes
+class COCO_128Lables(object):
+    def __init__(self, ind_to_class=None):
+        self.ind_to_class = ind_to_class
+        self.num_classes = len(ind_to_class)
+    def get_target(self, path_target):
+        results = []
 
-    Arguments:
-        class_to_ind (dict, optional): dictionary lookup of classnames -> indexes
-            (default: alphabetic indexing of VOC's 20 classes)
-        keep_difficult (bool, optional): keep difficult instances or not
-            (default: False)
-        height (int): height
-        width (int): width
-    """
+        with open(path_target, 'r') as file:
+            lines = file.readlines()
 
-    def __init__(self, class_to_ind=None, keep_difficult=False):
-        self.class_to_ind = class_to_ind
-        self.keep_difficult = keep_difficult
+        for line in lines:
+            # Check: label_ind center_x center_y width height
+            parts = line.strip().split()
+            if len(parts) != 5:
+                raise ValueError(f"Format -label_ind center_x center_y width height-: {line.strip()}")
 
-    def __call__(self, target, width, height):
-        res = []
-        for obj in target.iter('object'):
-            difficult = int(obj.find('difficult').text) == 1
-            if not self.keep_difficult and difficult:
-                continue
-            name = obj.find('name').text.lower().strip()
-            bbox = obj.find('bndbox')
+            label_ind = int(parts[0])
+            center_x = float(parts[1])
+            center_y = float(parts[2])
+            width = float(parts[3])
+            height = float(parts[4])
 
-            pts = ['xmin', 'ymin', 'xmax', 'ymax']
-            bndbox = []
-            for i, pt in enumerate(pts):
-                cur_pt = int(bbox.find(pt).text) - 1
-                # scale height or width
-                cur_pt = cur_pt / width if i % 2 == 0 else cur_pt / height
-                bndbox.append(cur_pt)
-            label_idx = self.class_to_ind[name]
-            bndbox.append(label_idx)
-            res += [bndbox]  # [xmin, ymin, xmax, ymax, label_ind]
-            # img_id = target.find('filename').text[:-4]
+            # Convert [xmin, ymin, xmax, ymax, label_ind]
+            xmin = center_x - width / 2
+            ymin = center_y - height / 2
+            xmax = center_x + width / 2
+            ymax = center_y + height / 2
 
-        return res  # [[xmin, ymin, xmax, ymax, label_ind], ... ]
+            results.append([xmin, ymin, xmax, ymax, label_ind])
+
+        return results # [[xmin, ymin, xmax, ymax, label_ind], ... ]
+
+    def decoder_target(self, index):
+        return self.ind_to_class[index]
 
 class COCO_128Detection(data.Dataset):
-    def __init__(self, parameter,
-                 transform=None):
-        self.name = "Dataset coco128-format"
-        self.parameter = parameter
+    def __init__(self, path_yaml,
+                 transform=None, name="Dataset coco128-format"):
+
+        self.name = name
+        self.path_yaml = path_yaml
+        info_yaml = tools.load_yaml_to_dict(path_yaml)
+
         self.transform = transform
-        self.target_transform = COCO_128AnnotationTransform({value: key for key, value in parameter['names'].items()})
-        self._annopath = osp.join('%s', 'Annotations', '%s.xml')
-        self._imgpath = osp.join('%s', 'JPEGImages', '%s.jpg')
-        self.ids = list()
+        self.target_transform = COCO_128Lables(info_yaml['names'].items())
+        self.num_classes = self.target_transform.num_classes    
+    
+        imgs_path = osp.join(info_yaml['path'], info_yaml['train'])
+        list_name_imgs = [osp.splitext(item)[0] for item in os.listdir(imgs_path)]
+        self.dict_imgs_path = {osp.splitext(item)[0]: osp.join(imgs_path, item) for item in os.listdir(imgs_path)}
+        
+        labels_path = osp.join(osp.join(info_yaml['path'], 'labels'), osp.basename(osp.normpath(imgs_path)))
+        list_name_labels = [osp.splitext(item)[0] for item in os.listdir(labels_path)]
+        self.dict_labels_path = {osp.splitext(item)[0]: osp.join(labels_path, item) for item in os.listdir(labels_path)}
+        
+        self.ids = list(set(list_name_imgs) & set(list_name_labels))
 
     def __getitem__(self, index):
         im, gt, h, w = self.pull_item(index)
-
         return im, gt
 
     def __len__(self):
         return len(self.ids)
 
     def pull_item(self, index):
-        img_id = self.ids[index]
+        '''
+        Return: 
+            torch.from_numpy(img), target, height, width
+        '''
+        name_id = self.ids[index]
+        img_path = self.dict_imgs_path[name_id]
+        target_path = self.dict_labels_path[name_id]
 
-        target = ET.parse(self._annopath % img_id).getroot()
-        img = cv2.imread(self._imgpath % img_id)
+        img = cv2.imread(img_path)
         height, width, channels = img.shape
 
-        if self.target_transform is not None:
-            target = self.target_transform(target, width, height)
-
+        target = self.target_transform.get_target(target_path)
+        
         if self.transform is not None:
             target = np.array(target)
             img, boxes, labels = self.transform(img, target[:, :4], target[:, 4])
-            # to rgb
-            img = img[:, :, (2, 1, 0)]
+            img = img[:, :, (2, 1, 0)] # to rgb
             target = np.hstack((boxes, np.expand_dims(labels, axis=1)))
-        return torch.from_numpy(img).permute(2, 0, 1), target, height, width
-        # return torch.from_numpy(img), target, height, width
-
+        return torch.from_numpy(img).permute(2, 0, 1), target, height, width 
+        
     def pull_image(self, index):
         '''Returns the original image object at index in PIL form
 
@@ -91,8 +102,9 @@ class COCO_128Detection(data.Dataset):
         Return:
             PIL img
         '''
-        img_id = self.ids[index]
-        return cv2.imread(self._imgpath % img_id, cv2.IMREAD_COLOR)
+        name_id = self.ids[index]
+        img_path = self.dict_imgs_path[name_id]
+        return cv2.imread(img_path, cv2.IMREAD_COLOR)
 
     def pull_anno(self, index):
         '''Returns the original annotation of image at index
@@ -106,10 +118,13 @@ class COCO_128Detection(data.Dataset):
             list:  [img_id, [(label, bbox coords),...]]
                 eg: ('001718', [('dog', (96, 13, 438, 332))])
         '''
-        img_id = self.ids[index]
-        anno = ET.parse(self._annopath % img_id).getroot()
-        gt = self.target_transform(anno, 1, 1)
-        return img_id[1], gt
+
+        name_id = self.ids[index]
+        img_path = self.dict_imgs_path[name_id]
+        target_path = self.dict_labels_path[name_id]
+        target = self.target_transform.get_target(target_path)
+
+        return name_id, target
 
     def pull_tensor(self, index):
         '''Returns the original image at an index in tensor form

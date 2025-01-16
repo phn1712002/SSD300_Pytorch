@@ -61,14 +61,14 @@ if not os.path.exists('weights/'):
 
 def train():
 
-    cfg = tools.copy_dict_excluding_keys(hyp, ['means'])
-    cfg['num_classes'] = len(p_dataset['names'])
     hyp = tools.load_yaml_to_dict(args.hyp)
-    p_dataset = tools.load_yaml_to_dict(args.data)
+    cfg = tools.copy_dict_excluding_keys(hyp, ['augmentations'])['cfg']
+    aug = tools.copy_dict_excluding_keys(hyp, ['cfg'])['augmentations']
 
-    dataset = coco128.COCO_128Detection(parameter=p_dataset, transform=SSDAugmentation(cfg['min_dim'], hyp['means']))
+    dataset = coco128.COCO_128Detection(path_yaml=args.data, transform=SSDAugmentation(**aug))
+    cfg['num_classes'] = dataset.num_classes
 
-    ssd_net = build_ssd('train', cfg['min_dim'], num_classes=cfg['num_classes'])
+    ssd_net = build_ssd(phase='train', size=cfg['min_dim'], num_classes=cfg['num_classes'])
     net = ssd_net
 
     if args.cuda:

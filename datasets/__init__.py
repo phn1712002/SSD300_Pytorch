@@ -1,4 +1,4 @@
-from .coco128 import COCO_128Detection, COCO_128AnnotationTransform
+from .coco128 import COCO_128Detection, COCO_128Lables
 
 import torch
 import cv2
