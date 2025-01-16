@@ -131,6 +131,7 @@ def train():
                                   shuffle=True, collate_fn=detection_collate,
                                   pin_memory=True)
     # create batch iterator
+    path_folder_save = f"./{args.project}/{args.name}/"
     batch_iterator = iter(data_loader)
     for iteration in range(0, cfg['max_iter']):
         if iteration != 0 and (iteration % epoch_size == 0):
@@ -172,18 +173,16 @@ def train():
             print('timer: %.4f sec.' % (t1 - t0))
             print('iter ' + repr(iteration) + ' || Loss: %.4f ||' % (loss.data), end=' ')
 
+    
         if args.save_period != -1:
             if iteration != 0 and iteration % args.save_period == 0:
-                if not os.path.exists(f'{args.project}/'):
-                    os.mkdir(f'{args.project}/')
-                if not os.path.exists(f'{args.project}/{args.project}/'):
-                    os.mkdir(f'{args.project}/{args.name}/')
+                if not os.path.exists(path_folder_save):
+                    os.mkdir(path_folder_save)
 
                 print('Saving state, iter:', iteration)
-                torch.save(ssd_net.state_dict(), f'./{args.project}/{args.name}_iter_' +
-                        repr(iteration) + '.pth')
-    torch.save(ssd_net.state_dict(),
-               f'./{args.project}/{args.name}/' + 'last.pth')
+                torch.save(ssd_net.state_dict(), os.path.join(path_folder_save, f"iter_{repr(iteration)}.pth"))
+    torch.save(ssd_net.state_dict(), os.path.join(path_folder_save, f"last.pth"))
+               
 
 
 def adjust_learning_rate(optimizer, gamma, step):
