@@ -2,3 +2,5 @@
 _train.py
 test.ipynb
 fix.sh
+datasets/*.zip
+
