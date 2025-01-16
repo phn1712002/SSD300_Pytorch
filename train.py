@@ -21,6 +21,7 @@ import wandb
 # Clear
 # Lấy đường dẫn tuyệt đối của file hiện tại (train.py)
 current_file_path = os.path.abspath(__file__)
+current_folder_path = os.path.dirname(os.path.dirname(current_file_path))
 os.system('pyclean .')
 os.system('clear')
 
@@ -31,9 +32,9 @@ parser = argparse.ArgumentParser(
     description='Single Shot MultiBox Detector Training With Pytorch')
 parser.add_argument('--batch_size', default=1, type=int,
                     help='Batch size for training')
-parser.add_argument('--hyp', default=os.path.join(current_file_path, 'hyp.yaml'), type=str,
+parser.add_argument('--hyp', default=os.path.join(current_folder_path, 'hyp.yaml'), type=str,
                     help='File yaml hyp of model')
-parser.add_argument('--data', default=os.path.join(current_file_path, 'coco128.yaml'), type=str,
+parser.add_argument('--data', default=os.path.join(current_folder_path, 'coco128.yaml'), type=str,
                     help='File yaml dataset of model')
 parser.add_argument('--resume', default=None, type=str,
                     help='Checkpoint state_dict file to resume training from')
@@ -61,9 +62,6 @@ if torch.cuda.is_available():
         torch.set_default_tensor_type('torch.FloatTensor')
 else:
     torch.set_default_tensor_type('torch.FloatTensor')
-
-if not os.path.exists(os.path.join(current_file_path, 'weights/')):
-    os.mkdir(os.path.join(current_file_path, 'weights/'))
 
 if args.batch_size < 0:
     batch_size = 1
@@ -94,11 +92,7 @@ def train():
         print('Resuming training, loading {}...'.format(args.resume))
         ssd_net.load_weights(args.resume)
     else:
-        path_model = os.path.join(current_file_path, 'weights/') + 'vgg16_reducedfc.pth'
-        if not os.path.exists(path_model):
-            print('Download base network...')
-            os.system('wget https://s3.amazonaws.com/amdegroot-models/vgg16_reducedfc.pth')
-        
+        path_model = os.path.join(current_folder_path, 'weights/') + 'vgg16_reducedfc.pth'
         print('Loading base network...')
         vgg_weights = torch.load(path_model)
         ssd_net.vgg.load_state_dict(vgg_weights)
@@ -186,10 +180,10 @@ def train():
                     os.mkdir(f'{args.project}/{args.name}/')
 
                 print('Saving state, iter:', iteration)
-                torch.save(ssd_net.state_dict(), f'{args.project}/{args.name}_iter_' +
+                torch.save(ssd_net.state_dict(), f'./{args.project}/{args.name}_iter_' +
                         repr(iteration) + '.pth')
     torch.save(ssd_net.state_dict(),
-               f'{args.project}/{args.name}/' + 'last.pth')
+               f'./{args.project}/{args.name}/' + 'last.pth')
 
 
 def adjust_learning_rate(optimizer, gamma, step):
