@@ -156,7 +156,7 @@ def train():
         optimizer.step()
         t1 = time.time()
 
-        if batch_size == 1:
+        if args.batch_size == 1:
             loc_loss += loss_l.data
             conf_loss += loss_c.data
         else:
@@ -165,7 +165,7 @@ def train():
 
         if iteration % 10 == 0:
             print('timer: %.4f sec.' % (t1 - t0))
-            if batch_size == 1:
+            if args.batch_size == 1:
                 print('iter ' + repr(iteration) + ' || Loss: %.4f ||' % (loss.data), end=' ')
             else:
                 print('iter ' + repr(iteration) + ' || Loss: %.4f ||' % (loss.data[0]), end=' ')
