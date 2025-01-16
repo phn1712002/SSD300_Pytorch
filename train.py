@@ -157,20 +157,12 @@ def train():
         loss.backward()
         optimizer.step()
         t1 = time.time()
-
-        if args.batch_size == 1:
-            loc_loss += loss_l.data
-            conf_loss += loss_c.data
-        else:
-            loc_loss += loss_l.data[0]
-            conf_loss += loss_c.data[0]
+        loc_loss += loss_l.data
+        conf_loss += loss_c.data
 
         if iteration % 10 == 0:
             print('timer: %.4f sec.' % (t1 - t0))
-            if args.batch_size == 1:
-                print('iter ' + repr(iteration) + ' || Loss: %.4f ||' % (loss.data), end=' ')
-            else:
-                print('iter ' + repr(iteration) + ' || Loss: %.4f ||' % (loss.data[0]), end=' ')
+            print('iter ' + repr(iteration) + ' || Loss: %.4f ||' % (loss.data), end=' ')
 
         if args.save_period != -1:
             if iteration != 0 and iteration % args.save_period == 0:
