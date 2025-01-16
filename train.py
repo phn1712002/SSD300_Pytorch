@@ -19,6 +19,8 @@ import wandb
 
 
 # Clear
+# Lấy đường dẫn tuyệt đối của file hiện tại (train.py)
+current_file_path = os.path.abspath(__file__)
 os.system('pyclean .')
 os.system('clear')
 
@@ -27,12 +29,11 @@ def str2bool(v):
 
 parser = argparse.ArgumentParser(
     description='Single Shot MultiBox Detector Training With Pytorch')
-train_set = parser.add_mutually_exclusive_group()
 parser.add_argument('--batch_size', default=1, type=int,
                     help='Batch size for training')
-parser.add_argument('--hyp', default='hyp.yaml', type=str,
+parser.add_argument('--hyp', default=os.join(current_file_path, 'hyp.yaml'), type=str,
                     help='File yaml hyp of model')
-parser.add_argument('--data', default='coco128.yaml', type=str,
+parser.add_argument('--data', default=os.join(current_file_path, 'coco128.yaml'), type=str,
                     help='File yaml dataset of model')
 parser.add_argument('--resume', default=None, type=str,
                     help='Checkpoint state_dict file to resume training from')
@@ -61,16 +62,14 @@ if torch.cuda.is_available():
 else:
     torch.set_default_tensor_type('torch.FloatTensor')
 
-if not os.path.exists('weights/'):
-    os.mkdir('weights/')
+if not os.path.exists(os.join(current_file_path, 'weights/')):
+    os.mkdir(os.join(current_file_path, 'weights/'))
 
 if args.batch_size < 0:
     batch_size = 1
 
 def train():
     
-
-
     hyp = tools.load_yaml_to_dict(args.hyp)
     cfg = hyp['cfg']
     aug = hyp['augmentations']
@@ -95,7 +94,7 @@ def train():
         print('Resuming training, loading {}...'.format(args.resume))
         ssd_net.load_weights(args.resume)
     else:
-        path_model = 'weights/' + 'vgg16_reducedfc.pth'
+        path_model = os.join(current_file_path, 'weights/') + 'vgg16_reducedfc.pth'
         if not os.path.exists(path_model):
             print('Download base network...')
             os.system('wget https://s3.amazonaws.com/amdegroot-models/vgg16_reducedfc.pth')
