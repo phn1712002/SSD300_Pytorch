@@ -17,6 +17,8 @@ import numpy as np
 import argparse
 import wandb
 
+
+# Clear
 os.system('pyclean .')
 os.system('clear')
 
@@ -44,6 +46,8 @@ parser.add_argument('--name', default=tools.generate_random_name(4), type=str,
                     help='Name run exp')
 parser.add_argument("--save_period", type=int, default=-1, 
                     help="Save checkpoint every x epochs (disabled if < 1)")
+parser.add_argument("--save_log", type=bool, default=True, 
+                    help="Enable wandb")
 args = parser.parse_args()
 
 
@@ -64,12 +68,19 @@ if args.batch_size < 0:
     batch_size = 1
 
 def train():
+    
+
 
     hyp = tools.load_yaml_to_dict(args.hyp)
     cfg = hyp['cfg']
     aug = hyp['augmentations']
     opt = tools.convert_dict_values_to_float(hyp['opt'])
     p_detect = hyp['detect']
+
+    wandb.init(project=args.project, 
+                name=args.name, 
+                config=hyp, 
+                save_code=True)
 
     dataset = coco128.COCO_128Detection(path_yaml=args.data, transform=SSDAugmentation(**aug, size=300))
 
@@ -160,6 +171,9 @@ def train():
         t1 = time.time()
         loc_loss += loss_l.data
         conf_loss += loss_c.data
+
+        # Log to wandb
+        wandb.log({"iter": iteration, "loc_loss": loc_loss, "conf_loss": conf_loss, "loss": loss})
 
         if iteration % 10 == 0:
             print('timer: %.4f sec.' % (t1 - t0))
