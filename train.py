@@ -1,4 +1,4 @@
-from datasets import coco128
+from datasets import coco128, detection_collate
 from utils import tools
 from utils.augmentations import SSDAugmentation
 from layers.modules import MultiBoxLoss
@@ -25,7 +25,7 @@ def str2bool(v):
 parser = argparse.ArgumentParser(
     description='Single Shot MultiBox Detector Training With Pytorch')
 train_set = parser.add_mutually_exclusive_group()
-parser.add_argument('--batch_size', default=32, type=int,
+parser.add_argument('--batch_size', default=1, type=int,
                     help='Batch size for training')
 parser.add_argument('--hyp', default='hyp.yaml', type=str,
                     help='File yaml hyp of model')
@@ -35,9 +35,9 @@ parser.add_argument('--resume', default=None, type=str,
                     help='Checkpoint state_dict file to resume training from')
 parser.add_argument('--num_workers', default=4, type=int,
                     help='Number of workers used in dataloading')
-parser.add_argument('--cuda', default=True, type=str2bool,
+parser.add_argument('--cuda', default=False, type=str2bool,
                     help='Use CUDA to train model')
-parser.add_argument('--project', default="SSD", type=str,
+parser.add_argument('--project', default="SSD300", type=str,
                     help='Name project')
 parser.add_argument('--name', default=tools.generate_random_name(4), type=str,
                     help='Name run exp')
@@ -57,17 +57,20 @@ else:
 if not os.path.exists('weights/'):
     os.mkdir('weights/')
 
+if args.batch_size < 0:
+    batch_size = 1
+
 def train():
 
     hyp = tools.load_yaml_to_dict(args.hyp)
     cfg = hyp['cfg']
     aug = hyp['augmentations']
-    opt = hyp['opt']
+    opt = tools.convert_dict_values_to_float(hyp['opt'])
     p_detect = hyp['detect']
 
-    dataset = coco128.COCO_128Detection(path_yaml=args.data, transform=SSDAugmentation(**aug))
+    dataset = coco128.COCO_128Detection(path_yaml=args.data, transform=SSDAugmentation(**aug, size=300))
 
-    ssd_net = build_ssd(phase='train', size=cfg['min_dim'], num_classes=dataset.num_classes, p_detect=p_detect, cfg=cfg)
+    ssd_net = build_ssd(phase='train', size=300, num_classes=dataset.num_classes, p_detect=p_detect, cfg=cfg)
     net = ssd_net
 
     if args.cuda:
@@ -82,9 +85,9 @@ def train():
         if not os.path.exists(path_model):
             print('Download base network...')
             os.system('wget https://s3.amazonaws.com/amdegroot-models/vgg16_reducedfc.pth')
-            vgg_weights = torch.load(path_model)
-
+        
         print('Loading base network...')
+        vgg_weights = torch.load(path_model)
         ssd_net.vgg.load_state_dict(vgg_weights)
 
     if args.cuda:
@@ -152,13 +155,21 @@ def train():
         loss.backward()
         optimizer.step()
         t1 = time.time()
-        loc_loss += loss_l.data[0]
-        conf_loss += loss_c.data[0]
+
+        if batch_size == 1:
+            loc_loss += loss_l.data
+            conf_loss += loss_c.data
+        else:
+            loc_loss += loss_l.data[0]
+            conf_loss += loss_c.data[0]
 
         if iteration % 10 == 0:
             print('timer: %.4f sec.' % (t1 - t0))
-            print('iter ' + repr(iteration) + ' || Loss: %.4f ||' % (loss.data[0]), end=' ')
-
+            if batch_size == 1:
+                print('iter ' + repr(iteration) + ' || Loss: %.4f ||' % (loss.data), end=' ')
+            else:
+                print('iter ' + repr(iteration) + ' || Loss: %.4f ||' % (loss.data[0]), end=' ')
+                
         if iteration != 0 and iteration % 5000 == 0:
             print('Saving state, iter:', iteration)
             torch.save(ssd_net.state_dict(), 'weights/ssd300_COCO_' +

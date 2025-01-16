@@ -10,7 +10,7 @@ class PriorBox(object):
     """
     def __init__(self, cfg):
         super(PriorBox, self).__init__()
-        self.image_size = cfg['min_dim']
+        self.image_size = 300
         # number of priors for feature map location (either 4 or 6)
         self.num_priors = len(cfg['aspect_ratios'])
         self.variance = cfg['variance'] or [0.1]
@@ -20,7 +20,6 @@ class PriorBox(object):
         self.steps = cfg['steps']
         self.aspect_ratios = cfg['aspect_ratios']
         self.clip = cfg['clip']
-        self.version = cfg['name']
         for v in self.variance:
             if v <= 0:
                 raise ValueError('Variances must be greater than 0')

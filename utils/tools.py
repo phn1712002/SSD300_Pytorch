@@ -42,3 +42,20 @@ def copy_dict_excluding_keys(original_dict, keys_to_exclude):
     # Sử dụng dictionary comprehension để loại bỏ các key cần loại trừ
     new_dict = {key: value for key, value in original_dict.items() if key not in keys_to_exclude}
     return new_dict
+
+def convert_dict_values_to_float(data):
+    """
+    Hàm chuyển đổi giá trị trong dict thành số thực (float).
+    
+    Args:
+        data (dict): Dict với giá trị có thể là chuỗi hoặc danh sách chuỗi.
+    
+    Returns:
+        dict: Dict mới với giá trị đã được chuyển thành float.
+    """
+    for key, value in data.items():
+        if isinstance(value, list):
+            data[key] = [float(v) for v in value]  # Chuyển đổi từng phần tử trong list
+        else:
+            data[key] = float(value)  # Chuyển đổi giá trị đơn lẻ
+    return data
