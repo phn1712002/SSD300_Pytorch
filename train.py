@@ -44,7 +44,7 @@ parser.add_argument('--name', default=tools.generate_random_name(4), type=str,
                     help='Name run exp')
 parser.add_argument("--save_period", type=int, default=-1, 
                     help="Save checkpoint every x epochs (disabled if < 1)")
-parser.add_argument("--save_log", type=bool, default=True, 
+parser.add_argument("--log_wandb", type=bool, default=True, 
                     help="Enable wandb")
 args = parser.parse_args()
 
@@ -70,7 +70,7 @@ def train():
     opt = tools.convert_dict_values_to_float(hyp['opt'])
     p_detect = hyp['detect']
 
-    if args.save_log:
+    if args.log_wandb:
         wandb.init(project=args.project, 
                     name=args.name, 
                     config=hyp, 
@@ -164,7 +164,7 @@ def train():
         conf_loss += loss_c.data
 
         # Log to wandb
-        if args.save_log:
+        if args.log_wandb:
             wandb.log({"loc_loss": loc_loss, "conf_loss": conf_loss, "loss": loss})
 
         if iteration % 10 == 0:
@@ -181,7 +181,7 @@ def train():
                 torch.save(ssd_net.state_dict(), os.path.join(path_folder_save, f"iter_{repr(iteration)}.pth"))
     torch.save(ssd_net.state_dict(), os.path.join(path_folder_save, f"last.pth"))
     
-    if args.save_log:
+    if args.log_wandb:
         wandb.finish()
                
 
