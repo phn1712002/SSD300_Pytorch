@@ -17,13 +17,9 @@ import numpy as np
 import argparse
 import wandb
 
-
-# Clear
 # Lấy đường dẫn tuyệt đối của file hiện tại (train.py)
 current_file_path = os.path.abspath(__file__)
 current_folder_path = os.path.dirname(current_file_path)
-os.system('pyclean .')
-os.system('clear')
 
 def str2bool(v):
     return v.lower() in ("yes", "true", "t", "1")
