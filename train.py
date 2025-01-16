@@ -41,6 +41,8 @@ parser.add_argument('--project', default="SSD300", type=str,
                     help='Name project')
 parser.add_argument('--name', default=tools.generate_random_name(4), type=str,
                     help='Name run exp')
+parser.add_argument("--save_period", type=int, default=-1, 
+                    help="Save checkpoint every x epochs (disabled if < 1)")
 args = parser.parse_args()
 
 
@@ -169,13 +171,19 @@ def train():
                 print('iter ' + repr(iteration) + ' || Loss: %.4f ||' % (loss.data), end=' ')
             else:
                 print('iter ' + repr(iteration) + ' || Loss: %.4f ||' % (loss.data[0]), end=' ')
-                
-        if iteration != 0 and iteration % 5000 == 0:
-            print('Saving state, iter:', iteration)
-            torch.save(ssd_net.state_dict(), 'weights/ssd300_COCO_' +
-                       repr(iteration) + '.pth')
+
+        if args.save_period != -1:
+            if iteration != 0 and iteration % args.save_period == 0:
+                if not os.path.exists(f'{args.project}/'):
+                    os.mkdir(f'{args.project}/')
+                if not os.path.exists(f'{args.project}/{args.project}/'):
+                    os.mkdir(f'{args.project}/{args.name}/')
+
+                print('Saving state, iter:', iteration)
+                torch.save(ssd_net.state_dict(), f'{args.project}/{args.name}_iter_' +
+                        repr(iteration) + '.pth')
     torch.save(ssd_net.state_dict(),
-               'weights/' + '' + args.dataset + '.pth')
+               f'{args.project}/{args.name}/' + 'last.pth')
 
 
 def adjust_learning_rate(optimizer, gamma, step):
@@ -188,10 +196,8 @@ def adjust_learning_rate(optimizer, gamma, step):
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
 
-
 def xavier(param):
     init.xavier_uniform(param)
-
 
 def weights_init(m):
     if isinstance(m, nn.Conv2d):
