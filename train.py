@@ -74,10 +74,11 @@ def train():
     opt = tools.convert_dict_values_to_float(hyp['opt'])
     p_detect = hyp['detect']
 
-    wandb.init(project=args.project, 
-                name=args.name, 
-                config=hyp, 
-                save_code=True)
+    if args.save_log:
+        wandb.init(project=args.project, 
+                    name=args.name, 
+                    config=hyp, 
+                    save_code=True)
 
     dataset = coco128.COCO_128Detection(path_yaml=args.data, transform=SSDAugmentation(**aug, size=300))
 
@@ -167,7 +168,8 @@ def train():
         conf_loss += loss_c.data
 
         # Log to wandb
-        wandb.log({"iter": iteration, "loc_loss": loc_loss, "conf_loss": conf_loss, "loss": loss})
+        if args.save_log:
+            wandb.log({"iter": iteration, "loc_loss": loc_loss, "conf_loss": conf_loss, "loss": loss})
 
         if iteration % 10 == 0:
             print('timer: %.4f sec.' % (t1 - t0))
@@ -182,6 +184,8 @@ def train():
                 print('Saving state, iter:', iteration)
                 torch.save(ssd_net.state_dict(), os.path.join(path_folder_save, f"iter_{repr(iteration)}.pth"))
     torch.save(ssd_net.state_dict(), os.path.join(path_folder_save, f"last.pth"))
+    if args.save_log:
+        wandb.finish()
                
 
 
