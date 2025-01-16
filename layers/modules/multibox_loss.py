@@ -90,12 +90,27 @@ class MultiBoxLoss(nn.Module):
 
         # Compute max conf across batch for hard negative mining
         batch_conf = conf_data.view(-1, self.num_classes)
-        loss_c = log_sum_exp(batch_conf) - batch_conf.gather(1, conf_t.view(-1, 1))
+        #loss_c = log_sum_exp (batch_conf) - batch_conf.gather (1, conf_t.view (-1, 1))
+
+        # https://github.com/amdegroot/ssd.pytorch/issues/161
+        # Note that <YOUR_CLASS>_CLASSES must contain (n+1) classes, if in config.py you list num_classes: n.
+        # Then in multibox_loss.py you may gather along the 1st axis, like the default SSD code has it.
+        conf_tt = conf_t.view(-1,1)
+        conf_tt_index = (conf_tt != 0).nonzero()
+        conf_tt[conf_tt_index] = 1
+        loss_c = log_sum_exp(batch_conf) - batch_conf.gather(1, conf_tt)
 
         # Hard Negative Mining
+        # loss_c[pos] = 0  # filter out pos boxes for now
+        # loss_c = loss_c.view(num, -1)
+
+        # https://github.com/amdegroot/ssd.pytorch/issues/161
+        # Hard Negative Mining
+        # [batch, num_priors]
         loss_c = loss_c.view(num, -1)
+        nonzero_pos = pos.nonzero()
         loss_c[pos] = 0  # filter out pos boxes for now
-        loss_c = loss_c.view(num, -1)
+
         _, loss_idx = loss_c.sort(1, descending=True)
         _, idx_rank = loss_idx.sort(1)
         num_pos = pos.long().sum(1, keepdim=True)
